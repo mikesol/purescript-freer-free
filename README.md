@@ -120,7 +120,7 @@ dinnerTime = do
     speak "Outrageous!"
 ```
 
-Using `freer`, all we have to do is change the transformation function passed to `freer`. The rest of the code can say the same.
+Using `freer`, all we have to do is change the transformation function passed to `freer`. The rest of the code can stay the same.
 
 ```purescript
 data TalkF a
