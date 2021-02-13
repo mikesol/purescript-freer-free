@@ -51,9 +51,9 @@ f = freer liftF :: FreeMonster Talk Talk
 
 program :: Free Talk Unit
 program = do
-  (f.mo'1 Speak) $ "Hello, what is your name?"
-  name <- (f.mo0 Listen)
-  (f.mo'1 Speak) $ "Nice to meet you, " <> name
+  (f.m'1 Speak) $ "Hello, what is your name?"
+  name <- (f.m0 Listen)
+  (f.m'1 Speak) $ "Nice to meet you, " <> name
 ```
 
 Voilà, no more boilerplate.
@@ -123,6 +123,7 @@ dinnerTime = do
 Using `freer`, all we have to do is change the transformation function passed to `freer`. The rest of the code can stay the same.
 
 ```purescript
+
 data TalkF a
   = Speak String a
   | Listen (String -> a)
@@ -165,13 +166,13 @@ type LovelyEvening r
 
 dinnerTime :: forall r. Free (VariantF (LovelyEvening r)) Unit
 dinnerTime = do
-  (f.mo'1 Speak) "I'm famished!"
-  isThereMore <- (d.mo1 Eat) Hummus
+  (f.m'1 Speak) "I'm famished!"
+  isThereMore <- (d.m1 Eat) Hummus
   if isThereMore then
     dinnerTime
   else do
-    bill <- (d.mo0 CheckPlease)
-    (f.mo'1 Speak) "Outrageous!"
+    bill <- (d.m0 CheckPlease)
+    (f.m'1 Speak) "Outrageous!"
 ```
 
 # How this helps

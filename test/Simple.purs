@@ -14,6 +14,6 @@ f = freer liftF :: FreeMonster Talk Talk
 
 program :: Free Talk Unit
 program = do
-  (f.mo'1 Speak) $ "Hello, what is your name?"
-  name <- (f.mo0 Listen)
-  (f.mo'1 Speak) $ "Nice to meet you, " <> name
+  (f.m'1 Speak) $ "Hello, what is your name?"
+  name <- (f.m0 Listen)
+  (f.m'1 Speak) $ "Nice to meet you, " <> name

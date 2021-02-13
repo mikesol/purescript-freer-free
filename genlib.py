@@ -39,9 +39,9 @@ def make_thunk_sig(i: int) -> str:
 
 
 def free_monster_type(n_free: int) -> str:
-    thunks = ',\n'.join(['mo\'' + str(x)+' :: ' + make_thunk_sig(x)
+    thunks = ',\n'.join(['m\'' + str(x)+' :: ' + make_thunk_sig(x)
                          for x in range(n_free)])
-    yonedas = ',\n'.join(['mo' + str(x)+' :: ' + make_yoneda_sig(x)
+    yonedas = ',\n'.join(['m' + str(x)+' :: ' + make_yoneda_sig(x)
                           for x in range(n_free)])
     return """type FreeMonster trans functor = {
   %s , %s
@@ -50,9 +50,9 @@ def free_monster_type(n_free: int) -> str:
 
 
 def free_monster_impl(n_free: int) -> str:
-    thunks = ',\n'.join(['mo\'' + str(x)+' : ___' + str(x)+"' trans"
+    thunks = ',\n'.join(['m\'' + str(x)+' : ___' + str(x)+"' trans"
                          for x in range(n_free)])
-    yonedas = ',\n'.join(['mo' + str(x)+' : ___' + str(x)+" trans"
+    yonedas = ',\n'.join(['m' + str(x)+' : ___' + str(x)+" trans"
                           for x in range(n_free)])
     return """freer :: forall trans functor. (forall terminus. functor terminus -> Free trans terminus) -> FreeMonster trans functor
 freer trans = {

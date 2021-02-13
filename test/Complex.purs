@@ -1,4 +1,4 @@
-module Test.Simple where
+module Test.Complex where
 
 import Prelude
 import Control.Monad.Free (Free, liftF)
@@ -49,10 +49,10 @@ type LovelyEvening r
 
 dinnerTime :: forall r. Free (VariantF (LovelyEvening r)) Unit
 dinnerTime = do
-  (f.mo'1 Speak) "I'm famished!"
-  isThereMore <- (d.mo1 Eat) Hummus
+  (f.m'1 Speak) "I'm famished!"
+  isThereMore <- (d.m1 Eat) Hummus
   if isThereMore then
     dinnerTime
   else do
-    bill <- (d.mo0 CheckPlease)
-    (f.mo'1 Speak) "Outrageous!"
+    bill <- (d.m0 CheckPlease)
+    (f.m'1 Speak) "Outrageous!"
