@@ -16,5 +16,4 @@ program :: Free Talk Unit
 program = do
   f $ Speak "Hello, what is your name?"
   name <- f Listen
-  f $ Speak ("Nice to meet you, " <> name)
-  pure unit
+  void $ f $ Speak ("Nice to meet you, " <> name)

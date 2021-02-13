@@ -40,20 +40,19 @@ Those boilerplate definitions are no fun. Let's fix that.
 With `purescript-freer-free`, we can do.
 
 ```purescript
-
 data Talk a
-  = Speak String a
+  = Speak String (Unit -> a)
   | Listen (String -> a)
 
 derive instance functorTalkF :: Functor Talk
 
-f = freer liftF :: FreeMonster Talk Talk
+f = liftF <<< yo :: AsFree
 
 program :: Free Talk Unit
 program = do
-  (f.m'1 Speak) $ "Hello, what is your name?"
-  name <- (f.m0 Listen)
-  (f.m'1 Speak) $ "Nice to meet you, " <> name
+  f $ Speak "Hello, what is your name?"
+  name <- f Listen
+  void $ f $ Speak ("Nice to meet you, " <> name)
 ```
 
 Voilà, no more boilerplate.
@@ -123,9 +122,8 @@ dinnerTime = do
 Using `freer`, all we have to do is change the transformation function passed to `freer`. The rest of the code can stay the same.
 
 ```purescript
-
 data TalkF a
-  = Speak String a
+  = Speak String (Unit -> a)
   | Listen (String -> a)
 
 derive instance functorTalkF :: Functor TalkF
@@ -135,7 +133,8 @@ type TALK
 
 _talk = SProxy :: SProxy "talk"
 
-f = freer (liftF <<< inj _talk) :: forall r. FreeMonster (VariantF ( talk :: TALK | r )) TalkF
+f :: forall end r func. Functor func => ((end -> end) -> func end) -> Free (VariantF ( talk ∷ FProxy func | r )) end
+f = liftF <<< inj _talk <<< yo
 
 data Food
   = Hummus
@@ -159,26 +158,30 @@ type DINNER
 
 _dinner = SProxy :: SProxy "dinner"
 
-d = freer (liftF <<< inj _dinner) :: forall r. FreeMonster (VariantF ( dinner :: DINNER | r )) DinnerF
+type Foo (sym :: Symbol)
+  = ∀ f a r1 r2. Cons sym (FProxy f) r1 r2 => IsSymbol sym => Functor f => ((a -> a) -> f a) -> Free (VariantF r2) a
+
+d :: forall end r func. Functor func => ((end -> end) -> func end) -> Free (VariantF ( dinner ∷ FProxy func | r )) end
+d = liftF <<< inj _dinner <<< yo
 
 type LovelyEvening r
   = ( dinner :: DINNER, talk :: TALK | r )
 
 dinnerTime :: forall r. Free (VariantF (LovelyEvening r)) Unit
 dinnerTime = do
-  (f.m'1 Speak) "I'm famished!"
-  isThereMore <- (d.m1 Eat) Hummus
+  f $ Speak "I'm famished!"
+  isThereMore <- d $ Eat Hummus
   if isThereMore then
     dinnerTime
   else do
-    bill <- (d.m0 CheckPlease)
-    (f.m'1 Speak) "Outrageous!"
+    bill <- d $ CheckPlease
+    void $ f $ Speak "Outrageous!"
 ```
 
 # How this helps
 
 There are three ways this library has helped us at Meeshkan:
 
-- We can change the construction of `FreeMonster` using `freer` without changing the program.
+- When we modify our variants can change the signature of helper functions like `f` without changing helper methods.
 - As actions in free monads spill into the 10s, this reduces the size of a file substantially.
-- We are able to read the program in terms of the underlying functor.
+- We are able to read the program in terms of the underlying functor (aka nicer colors in the IDE).

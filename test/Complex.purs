@@ -61,5 +61,4 @@ dinnerTime = do
     dinnerTime
   else do
     bill <- d $ CheckPlease
-    f $ Speak "Outrageous!"
-    pure unit
+    void $ f $ Speak "Outrageous!"
