@@ -40,19 +40,29 @@ Those boilerplate definitions are no fun. Let's fix that.
 With `purescript-freer-free`, we can do.
 
 ```purescript
+module Test.Simple where
+
+import Prelude
+import Control.Monad.Free (Free, liftF)
+import Control.Monad.Freer.Free (Constructors, constructors)
+import Data.Generic.Rep (class Generic)
+
 data Talk a
   = Speak String (Unit -> a)
   | Listen (String -> a)
 
-derive instance functorTalkF :: Functor Talk
+derive instance functorTalk :: Functor Talk
 
-f = liftF <<< yo :: AsFree
+derive instance genericTalk :: Generic (Talk a) _
+
+f :: Constructors Talk (Free Talk)
+f = constructors (liftF :: Talk ~> Free Talk)
 
 program :: Free Talk Unit
 program = do
-  f $ Speak "Hello, what is your name?"
-  name <- f Listen
-  void $ f $ Speak ("Nice to meet you, " <> name)
+  f.speak "Hello, what is your name?"
+  name <- f.listen
+  f.speak ("Nice to meet you, " <> name)
 ```
 
 Voilà, no more boilerplate.
@@ -128,13 +138,18 @@ data TalkF a
 
 derive instance functorTalkF :: Functor TalkF
 
+derive instance genericTalkF :: Generic (TalkF a) _
+
 type TALK
   = FProxy TalkF
 
 _talk = SProxy :: SProxy "talk"
 
-f :: forall end r func. Functor func => ((end -> end) -> func end) -> Free (VariantF ( talk ∷ FProxy func | r )) end
-f = liftF <<< inj _talk <<< yo
+type TalkV r
+  = (VariantF ( talk ∷ FProxy TalkF | r ))
+
+f :: forall r. Constructors TalkF (Free (TalkV r))
+f = constructors (liftF <<< inj _talk :: TalkF ~> (Free (TalkV r)))
 
 data Food
   = Hummus
@@ -151,31 +166,33 @@ data DinnerF a
   = Eat Food (IsThereMore -> a)
   | CheckPlease (Bill -> a)
 
-derive instance functorDinnerF :: Functor DinnerF
-
 type DINNER
   = FProxy DinnerF
 
+derive instance functorDinnerF :: Functor DinnerF
+
+derive instance genericDinnerF :: Generic (DinnerF a) _
+
 _dinner = SProxy :: SProxy "dinner"
 
-type Foo (sym :: Symbol)
-  = ∀ f a r1 r2. Cons sym (FProxy f) r1 r2 => IsSymbol sym => Functor f => ((a -> a) -> f a) -> Free (VariantF r2) a
+type DinnerV r
+  = (VariantF ( dinner ∷ FProxy DinnerF | r ))
 
-d :: forall end r func. Functor func => ((end -> end) -> func end) -> Free (VariantF ( dinner ∷ FProxy func | r )) end
-d = liftF <<< inj _dinner <<< yo
+d :: forall r. Constructors DinnerF (Free (DinnerV r))
+d = constructors (liftF <<< inj _dinner :: DinnerF ~> (Free (DinnerV r)))
 
 type LovelyEvening r
   = ( dinner :: DINNER, talk :: TALK | r )
 
 dinnerTime :: forall r. Free (VariantF (LovelyEvening r)) Unit
 dinnerTime = do
-  f $ Speak "I'm famished!"
-  isThereMore <- d $ Eat Hummus
+  f.speak "I'm famished!"
+  isThereMore <- d.eat Hummus
   if isThereMore then
     dinnerTime
   else do
-    bill <- d $ CheckPlease
-    void $ f $ Speak "Outrageous!"
+    bill <- d.checkPlease
+    f.speak "Outrageous!"
 ```
 
 # How this helps
