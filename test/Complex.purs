@@ -2,11 +2,11 @@ module Test.Complex where
 
 import Prelude
 import Control.Monad.Free (Free, liftF)
-import Control.Monad.Freer.Yo (yo)
+import Control.Monad.Freer.Free (Constructors, constructors)
 import Data.Functor.Variant (VariantF, inj)
-import Data.Symbol (class IsSymbol, SProxy(..))
+import Data.Generic.Rep (class Generic)
+import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
-import Prim.Row (class Cons)
 
 data TalkF a
   = Speak String (Unit -> a)
@@ -14,13 +14,18 @@ data TalkF a
 
 derive instance functorTalkF :: Functor TalkF
 
+derive instance genericTalkF :: Generic (TalkF a) _
+
 type TALK
   = FProxy TalkF
 
 _talk = SProxy :: SProxy "talk"
 
-f :: forall end r func. Functor func => ((end -> end) -> func end) -> Free (VariantF ( talk ∷ FProxy func | r )) end
-f = liftF <<< inj _talk <<< yo
+type TalkV r
+  = (VariantF ( talk ∷ FProxy TalkF | r ))
+
+f :: forall r. Constructors TalkF (Free (TalkV r))
+f = constructors (liftF <<< inj _talk :: TalkF ~> (Free (TalkV r)))
 
 data Food
   = Hummus
@@ -37,28 +42,30 @@ data DinnerF a
   = Eat Food (IsThereMore -> a)
   | CheckPlease (Bill -> a)
 
-derive instance functorDinnerF :: Functor DinnerF
-
 type DINNER
   = FProxy DinnerF
 
+derive instance functorDinnerF :: Functor DinnerF
+
+derive instance genericDinnerF :: Generic (DinnerF a) _
+
 _dinner = SProxy :: SProxy "dinner"
 
-type Foo (sym :: Symbol)
-  = ∀ f a r1 r2. Cons sym (FProxy f) r1 r2 => IsSymbol sym => Functor f => ((a -> a) -> f a) -> Free (VariantF r2) a
+type DinnerV r
+  = (VariantF ( dinner ∷ FProxy DinnerF | r ))
 
-d :: forall end r func. Functor func => ((end -> end) -> func end) -> Free (VariantF ( dinner ∷ FProxy func | r )) end
-d = liftF <<< inj _dinner <<< yo
+d :: forall r. Constructors DinnerF (Free (DinnerV r))
+d = constructors (liftF <<< inj _dinner :: DinnerF ~> (Free (DinnerV r)))
 
 type LovelyEvening r
   = ( dinner :: DINNER, talk :: TALK | r )
 
 dinnerTime :: forall r. Free (VariantF (LovelyEvening r)) Unit
 dinnerTime = do
-  f $ Speak "I'm famished!"
-  isThereMore <- d $ Eat Hummus
+  f.speak "I'm famished!"
+  isThereMore <- d.eat Hummus
   if isThereMore then
     dinnerTime
   else do
-    bill <- d $ CheckPlease
-    void $ f $ Speak "Outrageous!"
+    bill <- d.checkPlease
+    f.speak "Outrageous!"
