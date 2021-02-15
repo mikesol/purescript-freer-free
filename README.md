@@ -48,7 +48,7 @@ import Control.Monad.Freer.Free (Constructors, constructors)
 import Data.Generic.Rep (class Generic)
 
 data Talk a
-  = Speak String (Unit -> a)
+  = Speak String a
   | Listen (String -> a)
 
 derive instance functorTalk :: Functor Talk
@@ -66,6 +66,30 @@ program = do
 ```
 
 Voilà, no more boilerplate.
+
+Note that `constructors` takes an arbitrary natural transformation, which allows us to turn our functors into any ol' functor we please.
+
+# Interpreters
+
+What's the fun of a free monad if you can't interpret it? The first interpreter uses traditional case matching, and the second uses interpreters from this library.
+
+```purescript
+i0 :: Talk ~> Maybe
+i0 = case _ of
+  Speak s a -> pure a
+  Listen a -> a <$> pure "hello"
+
+i1 :: Talk ~> Maybe
+i1 =
+  interpreter
+    { speak: const $ pure unit
+    , listen: pure "hello"
+    }
+```
+
+They seem pretty similar, but the second is an extensible record, which means you can compose interpreters. It also frees you up from passing through arguments in the pattern matching.
+
+# Variants
 
 Going back to the `purescript-run` example, let's imagine that we want to change our free monad to use variants.
 
@@ -133,7 +157,7 @@ Using `freer`, all we have to do is change the transformation function passed to
 
 ```purescript
 data TalkF a
-  = Speak String (Unit -> a)
+  = Speak String a
   | Listen (String -> a)
 
 derive instance functorTalkF :: Functor TalkF

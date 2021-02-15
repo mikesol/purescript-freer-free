@@ -1,7 +1,7 @@
 module Control.Monad.Freer.Free where
 
 import Prelude
-import Data.Functor.Variant (FProxy, SProxy(..))
+import Data.Functor.Variant (FProxy(..), SProxy(..))
 import Data.Generic.Rep (class Generic, Argument(..), Constructor(..), Product(..), Sum(..), from)
 import Data.Generic.Rep (to) as Generics.Rep
 import Data.Symbol (class IsSymbol)
@@ -501,8 +501,8 @@ else instance genericFreeInterpreter8Thunk :: (LowerFirst sym' sym, IsSymbol sym
 else instance genericFreeInterpreter9Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> argg -> argh -> argi -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument a))))))))))) m a table where
   genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument c))))))))))) = (get (SProxy :: SProxy sym) r) arga argb argc argd arge argf argg argh argi *> pure c
 
-interpreter :: forall t g m a table. GenericFreeInterpreter t g m a table => Generic (t a) g => FProxy t -> Record table -> t a -> m a
-interpreter proxy ntrans ipt = genericFreeInterpreter proxy ntrans (from ipt)
+interpreter :: forall t g m a table. GenericFreeInterpreter t g m a table => Generic (t a) g => Record table -> t a -> m a
+interpreter ntrans ipt = genericFreeInterpreter (FProxy :: FProxy t) ntrans (from ipt)
 
 type Constructors t m
   = forall g rout. Generic (t Void) g => GenericFreeConstructor m t g Top () rout => Record rout
