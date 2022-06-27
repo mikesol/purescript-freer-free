@@ -74,7 +74,7 @@ instance lowerCaseY :: LowerCase "Y" "y"
 
 instance lowerCaseZ :: LowerCase "Z" "z"
 
-foreign import kind ConstructorPath
+data ConstructorPath
 
 foreign import data Top :: ConstructorPath
 
@@ -82,25 +82,23 @@ foreign import data Inl :: ConstructorPath -> ConstructorPath
 
 foreign import data Inr :: ConstructorPath -> ConstructorPath
 
-data PProxy (path :: ConstructorPath)
-  = PProxy
-
 class ReconstructGeneric (path :: ConstructorPath) a g | path a -> g where
-  reconstructGeneric :: PProxy path -> a -> g
+  reconstructGeneric :: Proxy path -> a -> g
 
 instance reconstructGenericTop :: ReconstructGeneric Top a a where
   reconstructGeneric _ a = a
 else instance reconstructGenericInl ::
   (ReconstructGeneric p (Sum a t) b) =>
   ReconstructGeneric (Inl p) a b where
-  reconstructGeneric _ a = reconstructGeneric (PProxy :: PProxy p) (Inl a :: Sum a t)
+  reconstructGeneric _ a = reconstructGeneric (Proxy :: Proxy p) (Inl a :: Sum a t)
 else instance reconstructGenericInr ::
   (ReconstructGeneric p (Sum t a) b) =>
   ReconstructGeneric (Inr p) a b where
-  reconstructGeneric _ a = reconstructGeneric (PProxy :: PProxy p) (Inr a :: Sum t a)
+  reconstructGeneric _ a = reconstructGeneric (Proxy :: Proxy p) (Inr a :: Sum t a)
 
+class GenericFreeConstructor :: forall k. (Type -> Type) -> (Type -> Type) -> k -> ConstructorPath -> Row Type -> Row Type -> Constraint
 class GenericFreeConstructor m (t :: Type -> Type) g (p :: ConstructorPath) rin rout | t g -> rin rout p where
-  genericFreeConstructor :: (forall a. t a -> m a) -> Proxy g -> PProxy p -> { | rin } -> { | rout }
+  genericFreeConstructor :: (forall a. t a -> m a) -> Proxy g -> Proxy p -> { | rin } -> { | rout }
 
 instance genericFreeConstructorSum ::
   ( GenericFreeConstructor m t l (Inl p) rin lout
@@ -109,9 +107,9 @@ instance genericFreeConstructorSum ::
   GenericFreeConstructor m t (Sum l r) p rin rout where
   genericFreeConstructor ntrans _ _ rin = rout
     where
-    lout = genericFreeConstructor ntrans (Proxy :: Proxy l) (PProxy :: PProxy (Inl p)) rin
+    lout = genericFreeConstructor ntrans (Proxy :: Proxy l) (Proxy :: Proxy (Inl p)) rin
 
-    rout = genericFreeConstructor ntrans (Proxy :: Proxy r) (PProxy :: PProxy (Inr p)) lout
+    rout = genericFreeConstructor ntrans (Proxy :: Proxy r) (Proxy :: Proxy (Inr p)) lout
 else instance genericFreeConstructor0ParamThunk ::
   ( LowerFirst name name'
   , IsSymbol name'
@@ -374,9 +372,9 @@ else instance genericFreeConstructor9ParamYoneda ::
     f arga argb argc argd arge argf argg argh argi = ntrans $ (Generics.Rep.to (reconstructGeneric p ((Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument identity))))))))))) :: Constructor name (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument (args -> args))))))))))))) :: t args)
 
 constructors :: forall m g rout t. Generic (t Void) g => GenericFreeConstructor m t g Top () rout => (forall a. t a -> m a) -> { | rout }
-constructors ntrans = genericFreeConstructor ntrans (Proxy :: Proxy g) (PProxy :: PProxy Top) {}
+constructors ntrans = genericFreeConstructor ntrans (Proxy :: Proxy g) (Proxy :: Proxy Top) {}
 
-class GenericFreeInterpreter (t :: Type -> Type) (g :: Type) (m :: Type -> Type) (a :: Type) (table :: # Type) where
+class GenericFreeInterpreter (t :: Type -> Type) (g :: Type) (m :: Type -> Type) (a :: Type) (table :: Row Type) where
   genericFreeInterpreter :: Proxy t -> { | table } -> g -> m a
 
 instance genericFreeInterpreterSum0Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (m b) prev table, GenericFreeInterpreter t cont m a prev, Functor m) => GenericFreeInterpreter t (Sum (Constructor sym' (Argument (b -> a))) cont) m a table where
@@ -460,45 +458,45 @@ else instance genericFreeInterpreterSum9Thunk :: (LowerFirst sym' sym, IsSymbol 
     Inl (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument c))))))))))) -> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh argi *> pure c
     Inr x -> (genericFreeInterpreter :: (Proxy t -> { | prev } -> cont -> m a)) a (delete (Proxy :: Proxy sym) r) x
 else instance genericFreeInterpreter0Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Argument (b -> a))) m a table where
-  genericFreeInterpreter a r (Constructor (Argument c)) = c <$> (get (Proxy :: Proxy sym) r)
+  genericFreeInterpreter _ r (Constructor (Argument c)) = c <$> (get (Proxy :: Proxy sym) r)
 else instance genericFreeInterpreter1Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Argument (b -> a)))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Argument c))) = c <$> (get (Proxy :: Proxy sym) r) arga
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Argument c))) = c <$> (get (Proxy :: Proxy sym) r) arga
 else instance genericFreeInterpreter2Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Argument (b -> a))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Argument c)))) = c <$> (get (Proxy :: Proxy sym) r) arga argb
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Argument c)))) = c <$> (get (Proxy :: Proxy sym) r) arga argb
 else instance genericFreeInterpreter3Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Argument (b -> a)))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Argument c))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Argument c))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc
 else instance genericFreeInterpreter4Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Argument (b -> a))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Argument c)))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Argument c)))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd
 else instance genericFreeInterpreter5Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Argument (b -> a)))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Argument c))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Argument c))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge
 else instance genericFreeInterpreter6Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Argument (b -> a))))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Argument c)))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Argument c)))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf
 else instance genericFreeInterpreter7Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> argg -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Argument (b -> a)))))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Argument c))))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Argument c))))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg
 else instance genericFreeInterpreter8Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> argg -> argh -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Argument (b -> a))))))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Argument c)))))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Argument c)))))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh
 else instance genericFreeInterpreter9Yoneda :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> argg -> argh -> argi -> m b) prev table, Functor m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument (b -> a)))))))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument c))))))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh argi
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument c))))))))))) = c <$> (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh argi
 else instance genericFreeInterpreter0Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Argument a)) m a table where
-  genericFreeInterpreter a r (Constructor (Argument c)) = (get (Proxy :: Proxy sym) r) *> pure c
+  genericFreeInterpreter _ r (Constructor (Argument c)) = (get (Proxy :: Proxy sym) r) *> pure c
 else instance genericFreeInterpreter1Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Argument a))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Argument c))) = (get (Proxy :: Proxy sym) r) arga *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Argument c))) = (get (Proxy :: Proxy sym) r) arga *> pure c
 else instance genericFreeInterpreter2Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Argument a)))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Argument c)))) = (get (Proxy :: Proxy sym) r) arga argb *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Argument c)))) = (get (Proxy :: Proxy sym) r) arga argb *> pure c
 else instance genericFreeInterpreter3Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Argument a))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Argument c))))) = (get (Proxy :: Proxy sym) r) arga argb argc *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Argument c))))) = (get (Proxy :: Proxy sym) r) arga argb argc *> pure c
 else instance genericFreeInterpreter4Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Argument a)))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Argument c)))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Argument c)))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd *> pure c
 else instance genericFreeInterpreter5Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Argument a))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Argument c))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Argument c))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge *> pure c
 else instance genericFreeInterpreter6Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Argument a)))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Argument c)))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Argument c)))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf *> pure c
 else instance genericFreeInterpreter7Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> argg -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Argument a))))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Argument c))))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Argument c))))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg *> pure c
 else instance genericFreeInterpreter8Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> argg -> argh -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Argument a)))))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Argument c)))))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Argument c)))))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh *> pure c
 else instance genericFreeInterpreter9Thunk :: (LowerFirst sym' sym, IsSymbol sym, IsSymbol sym', Lacks sym prev, Cons sym (arga -> argb -> argc -> argd -> arge -> argf -> argg -> argh -> argi -> m Unit) prev table, Apply m, Applicative m) => GenericFreeInterpreter t (Constructor sym' (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument a))))))))))) m a table where
-  genericFreeInterpreter a r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument c))))))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh argi *> pure c
+  genericFreeInterpreter _ r (Constructor (Product (Argument arga) (Product (Argument argb) (Product (Argument argc) (Product (Argument argd) (Product (Argument arge) (Product (Argument argf) (Product (Argument argg) (Product (Argument argh) (Product (Argument argi) (Argument c))))))))))) = (get (Proxy :: Proxy sym) r) arga argb argc argd arge argf argg argh argi *> pure c
 
 interpreter :: forall t g m a table. GenericFreeInterpreter t g m a table => Generic (t a) g => Record table -> t a -> m a
 interpreter ntrans ipt = genericFreeInterpreter (Proxy :: Proxy t) ntrans (from ipt)
